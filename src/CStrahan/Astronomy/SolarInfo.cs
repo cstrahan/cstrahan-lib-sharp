@@ -1,30 +1,314 @@
 using System;
-using System.Diagnostics;
 
 namespace CStrahan.Astronomy
 {
-    // C# port of:
-    // http://www.srrb.noaa.gov/highlights/sunrise/sunrise.html
-    public class SolarInfo
+    // TODO: Look into PHP's implementation of similar functions:
+    // http://php.net/manual/en/function.date-sunrise.php
+
+    // TODO: Calculate the following:
+    // * incident solar radiation
+    // * brightness at zenith/time of day
+
+    public static class SolarInfo
     {
-        public double SolarDeclination { get; private set; }
-        public TimeSpan EquationOfTime { get; private set; }
-        public DateTime Sunrise { get; private set; }
-        public DateTime Sunset { get; private set; }
-        public TimeSpan? Noon { get; private set; }
-        public DateTime Date { get; private set; }
+        /// <summary>Conventionally used to signify twilight.</summary>
+        public const double CivilTwilightZenithDegrees = 96.0;
+        
+        /// <summary>The point at which the horizon stops being visible at sea.</summary>
+        public const double NauticalTwilightZenithDegrees = 102.0;
+        
+        /// <summary>The point when Sun stops being a source of any illumination.</summary>
+        public const double AstronomicalTwilightZenithDegrees = 108.0;
 
-        private SolarInfo() {}
-
-        public static SolarInfo ForDate(double latitude, double longitude, DateTime date)
+        /// <summary>
+        /// Calculates the elevation angle of the sun in degrees.
+        /// </summary>
+        /// <param name="latitude">The latitude in degrees.</param>
+        /// <param name="longitude">The longitude in degrees.</param>
+        /// <param name="dateTime">The date and time.</param>
+        /// <returns>The azimuth angle of the sun in degrees.</returns>
+        public static double GetElevationDegrees(double latitude, double longitude, DateTime dateTime)
         {
-            var info = new SolarInfo();
-            info.Date = date = date.Date;
+            return 90 - GetZenithDegrees(latitude, longitude, dateTime);
+        }
+
+        /// <summary>
+        /// Calculates the azimuth angle of the sun in degrees.
+        /// </summary>
+        /// <param name="latitude">The latitude in degrees.</param>
+        /// <param name="longitude">The longitude in degrees.</param>
+        /// <param name="dateTime">The date and time.</param>
+        /// <returns>The azimuth angle of the sun in degrees.</returns>
+        public static double GetAzimuthDegrees(double latitude, double longitude, DateTime dateTime)
+        {
+            var timenow = dateTime.TimeOfDay.TotalHours;
+
+            var JD = (calcJD(dateTime.Year, dateTime.Month, dateTime.Day));
+            var T = calcTimeJulianCent(JD + timenow / 24.0);
+            var theta = calcSunDeclination(T);
+            var Etime = calcEquationOfTime(T);
+
+            var eqTime = Etime;
+            var solarDec = theta; // in degrees
+
+            var solarTimeFix = eqTime - 4.0 * longitude;
+            var trueSolarTime = dateTime.Hour * 60.0 + dateTime.Minute + dateTime.Second / 60.0 + solarTimeFix;
+            // in minutes
+
+            while (trueSolarTime > 1440)
+            {
+                trueSolarTime -= 1440;
+            }
+
+            var hourAngle = trueSolarTime / 4.0 - 180.0;
+            if (hourAngle < -180)
+            {
+                hourAngle += 360.0;
+            }
+
+            var haRad = degToRad(hourAngle);
+
+            var csz = Math.Sin(degToRad(latitude)) *
+                Math.Sin(degToRad(solarDec)) +
+                Math.Cos(degToRad(latitude)) *
+                Math.Cos(degToRad(solarDec)) * Math.Cos(haRad);
+            if (csz > 1.0)
+            {
+                csz = 1.0;
+            }
+            else if (csz < -1.0)
+            {
+                csz = -1.0;
+            }
+            var zenith = radToDeg(Math.Acos(csz));
+
+            double azimuth;
+            var azDenom = (Math.Cos(degToRad(latitude)) * Math.Sin(degToRad(zenith)));
+            if (Math.Abs(azDenom) > 0.001)
+            {
+                var azRad = ((Math.Sin(degToRad(latitude)) *
+                    Math.Cos(degToRad(zenith))) -
+                    Math.Sin(degToRad(solarDec))) / azDenom;
+                if (Math.Abs(azRad) > 1.0)
+                {
+                    if (azRad < 0)
+                    {
+                        azRad = -1.0;
+                    }
+                    else
+                    {
+                        azRad = 1.0;
+                    }
+                }
+
+                azimuth = 180.0 - radToDeg(Math.Acos(azRad));
+
+                if (hourAngle > 0.0)
+                {
+                    azimuth = -azimuth;
+                }
+            }
+            else
+            {
+                if (latitude > 0.0)
+                {
+                    azimuth = 180.0;
+                }
+                else
+                {
+                    azimuth = 0.0;
+                }
+            }
+            if (azimuth < 0.0)
+            {
+                azimuth += 360.0;
+            }
+
+            return azimuth;
+        }
+
+        /// <summary>
+        /// Calculates the zenith angle of the sun in degrees.
+        /// </summary>
+        /// <param name="latitude">The latitude in degrees.</param>
+        /// <param name="longitude">The longitude in degrees.</param>
+        /// <param name="dateTime">The date and time.</param>
+        /// <returns>The zenith angle of the sun in degrees.</returns>
+        public static double GetZenithDegrees(double latitude, double longitude, DateTime dateTime)
+        {
+            var timenow = dateTime.TimeOfDay.TotalHours;
+
+            var JD = (calcJD(dateTime.Year, dateTime.Month, dateTime.Day));
+            var T = calcTimeJulianCent(JD + timenow / 24.0);
+            var theta = calcSunDeclination(T);
+            var Etime = calcEquationOfTime(T);
+
+            var eqTime = Etime;
+            var solarDec = theta; // in degrees
+
+            var solarTimeFix = eqTime - 4.0 * longitude;
+            var trueSolarTime = dateTime.Hour * 60.0 + dateTime.Minute + dateTime.Second / 60.0 + solarTimeFix;
+            // in minutes
+
+            while (trueSolarTime > 1440)
+            {
+                trueSolarTime -= 1440;
+            }
+
+            var hourAngle = trueSolarTime / 4.0 - 180.0;
+            if (hourAngle < -180)
+            {
+                hourAngle += 360.0;
+            }
+
+            var haRad = degToRad(hourAngle);
+
+            var csz = Math.Sin(degToRad(latitude)) *
+                Math.Sin(degToRad(solarDec)) +
+                Math.Cos(degToRad(latitude)) *
+                Math.Cos(degToRad(solarDec)) * Math.Cos(haRad);
+            if (csz > 1.0)
+            {
+                csz = 1.0;
+            }
+            else if (csz < -1.0)
+            {
+                csz = -1.0;
+            }
+            var zenith = radToDeg(Math.Acos(csz));
+
+            double refractionCorrection;
+            var exoatmElevation = 90.0 - zenith;
+            if (exoatmElevation > 85.0)
+            {
+                refractionCorrection = 0.0;
+            }
+            else
+            {
+                var te = Math.Tan(degToRad(exoatmElevation));
+                if (exoatmElevation > 5.0)
+                {
+                    refractionCorrection = 58.1 / te - 0.07 / (te * te * te) +
+                        0.000086 / (te * te * te * te * te);
+                }
+                else if (exoatmElevation > -0.575)
+                {
+                    refractionCorrection = 1735.0 + exoatmElevation *
+                        (-518.2 + exoatmElevation * (103.4 +
+                        exoatmElevation * (-12.79 +
+                        exoatmElevation * 0.711)));
+                }
+                else
+                {
+                    refractionCorrection = -20.774 / te;
+                }
+                refractionCorrection = refractionCorrection / 3600.0;
+            }
+
+            var solarZen = zenith - refractionCorrection;
+
+            return solarZen;
+        }
+
+        /// <summary>
+        /// Calculates the equation of time.
+        /// </summary>
+        /// <param name="latitude">The latitude in degrees.</param>
+        /// <param name="longitude">The longitude in degrees.</param>
+        /// <param name="dateTime">The date and time.</param>
+        /// <returns>
+        /// The equation of time.
+        /// </returns>
+        public static TimeSpan GetEquationOfTime(double latitude, double longitude, DateTime dateTime)
+        {
+            var timenow = dateTime.TimeOfDay.TotalHours;
+            var JD = (calcJD(dateTime.Year, dateTime.Month, dateTime.Day));
+            var T = calcTimeJulianCent(JD + timenow / 24.0);
+            return TimeSpan.FromMinutes(calcEquationOfTime(T));
+        }
+
+        /// <summary>
+        /// Calculates the declination of the sun in degrees.
+        /// </summary>
+        /// <param name="latitude">The latitude in degrees.</param>
+        /// <param name="longitude">The longitude in degrees.</param>
+        /// <param name="dateTime">The date and time.</param>
+        /// <returns>
+        /// The declination of the sun in degrees.
+        /// </returns>
+        public static double GetDeclinationDegrees(double latitude, double longitude, DateTime dateTime)
+        {
+            var timenow = dateTime.TimeOfDay.TotalHours;
+            var JD = (calcJD(dateTime.Year, dateTime.Month, dateTime.Day));
+            var T = calcTimeJulianCent(JD + timenow / 24.0);
+            return calcSunDeclination(T);
+        }
+
+        public static TimeSpan? GetNoon(double latitude, double longitude, DateTime date)
+        {
+            date = date.Date;
+
+            TimeSpan? noon = null;
 
             var year = date.Year;
             var month = date.Month;
             var day = date.Day;
-            
+
+            if ((latitude >= -90) && (latitude < -89))
+            {
+                latitude = -89;
+            }
+            else if ((latitude <= 90) && (latitude > 89))
+            {
+                latitude = 89;
+            }
+
+            // Calculate the time of sunrise			
+            var JD = calcJD(year, month, day);
+            var T = calcTimeJulianCent(JD);
+
+            // Calculate sunrise for this date
+            // if no sunrise is found, set flag nosunrise
+            var nosunrise = false;
+            var riseTimeGMT = calcSunriseUTC(JD, latitude, longitude);
+            nosunrise = !isNumber(riseTimeGMT);
+
+            // Calculate sunset for this date
+            // if no sunset is found, set flag nosunset
+            var nosunset = false;
+            var setTimeGMT = calcSunsetUTC(JD, latitude, longitude);
+            nosunset = !isNumber(setTimeGMT);
+
+            // Calculate solar noon for this date
+            var solNoonGMT = calcSolNoonUTC(T, longitude);
+            if (!(nosunset || nosunrise))
+            {
+                noon = TimeSpan.FromMinutes(solNoonGMT);
+            }
+
+            return noon;
+        }
+
+        /// <summary>
+        /// Calculates the time of sunset for the given date.
+        /// </summary>
+        /// <param name="latitude">The latitude in degrees.</param>
+        /// <param name="longitude">The longitude in degrees.</param>
+        /// <param name="date">The date of sunset.</param>
+        /// <returns>
+        /// The time that the sun sets.
+        /// If the sun does not set, the date and time of the nearest sunset.
+        /// </returns>
+        public static DateTime GetSunset(double latitude, double longitude, DateTime date)
+        {
+            date = date.Date;
+
+            DateTime sunset;
+
+            var year = date.Year;
+            var month = date.Month;
+            var day = date.Day;
+
             if ((latitude >= -90) && (latitude < -89))
             {
                 //alert("All latitudes between 89 and 90 S\n will be set to -89");
@@ -39,62 +323,119 @@ namespace CStrahan.Astronomy
                 latitude = 89;
             }
 
-            //*****	Calculate the time of sunrise			
+            // Calculate the time of sunrise			
             var JD = calcJD(year, month, day);
-            //var dow = calcDayOfWeek(JD);
             var doy = calcDayOfYear(month, day, isLeapYear(year));
             var T = calcTimeJulianCent(JD);
 
-            // var alpha = calcSunRtAscension(T);
-            var solarDec = calcSunDeclination(T);
-            var eqTime = calcEquationOfTime(T); // (in minutes)
+            // Calculate sunset for this date
+            var setTimeGMT = calcSunsetUTC(JD, latitude, longitude);
 
+            // Sunrise was found
+            if (isNumber(setTimeGMT))
+            {
+                sunset = date.Date.AddMinutes(setTimeGMT);
+            }
+            // report special cases of no sunrise
+            else
+            {
+                // if Northern hemisphere and spring or summer, OR
+                // if Southern hemisphere and fall or winter, use 
+                // previous sunrise and next sunset
+                if (((latitude > 66.4) && (doy > 79) && (doy < 267)) ||
+                   ((latitude < -66.4) && ((doy < 83) || (doy > 263))))
+                {
+                    var newjd = findNextSunset(JD, latitude, longitude);
+                    var newtime = calcSunsetUTC(newjd, latitude, longitude);
 
+                    if (newtime > 1440)
+                    {
+                        newtime -= 1440;
+                        newjd += 1.0;
+                    }
+                    if (newtime < 0)
+                    {
+                        newtime += 1440;
+                        newjd -= 1.0;
+                    }
+
+                    sunset = InternalConvertToDate(newtime, newjd);
+                }
+
+                // if Northern hemisphere and fall or winter, OR
+                // if Southern hemisphere and spring or summer, use 
+                // next sunrise and last sunset
+                else if (((latitude > 66.4) && ((doy < 83) || (doy > 263))) ||
+                    ((latitude < -66.4) && (doy > 79) && (doy < 267)))
+                {
+                    var newjd = findRecentSunset(JD, latitude, longitude);
+                    var newtime = calcSunsetUTC(newjd, latitude, longitude);
+
+                    if (newtime > 1440)
+                    {
+                        newtime -= 1440;
+                        newjd += 1.0;
+                    }
+                    if (newtime < 0)
+                    {
+                        newtime += 1440;
+                        newjd -= 1.0;
+                    }
+
+                    sunset = InternalConvertToDate(newtime, newjd);
+                }
+                else
+                {
+                    throw new Exception("Cannot Find Sunset!");
+                }
+            }
+
+            return sunset;
+        }
+
+        /// <summary>
+        /// Calculates the time of sunrise for the given date.
+        /// </summary>
+        /// <param name="latitude">The latitude in degrees.</param>
+        /// <param name="longitude">The longitude in degrees.</param>
+        /// <param name="date">The date of sunrise.</param>
+        /// <returns>
+        /// The time that the sun rises.
+        /// If the sun does not rise, the date and time of the nearest sunrise.
+        /// </returns>
+        public static DateTime GetSunrise(double latitude, double longitude, DateTime date)
+        {
+            date = date.Date;
+
+            DateTime sunrise;
+
+            var year = date.Year;
+            var month = date.Month;
+            var day = date.Day;
+
+            if ((latitude >= -90) && (latitude < -89))
+            {
+                latitude = -89;
+            }
+            else if ((latitude <= 90) && (latitude > 89))
+            {
+                latitude = 89;
+            }
+
+            // Calculate the time of sunrise			
+            var JD = calcJD(year, month, day);
+            var doy = calcDayOfYear(month, day, isLeapYear(year));
 
             // Calculate sunrise for this date
-            // if no sunrise is found, set flag nosunrise
-            var nosunrise = false;
-
             var riseTimeGMT = calcSunriseUTC(JD, latitude, longitude);
-            nosunrise = !isNumber(riseTimeGMT);
 
-            // Calculate sunset for this date
-            // if no sunset is found, set flag nosunset
-            var nosunset = false;
-            var setTimeGMT = calcSunsetUTC(JD, latitude, longitude);
-            if (!isNumber(setTimeGMT))
+            // Sunrise was found
+            if (isNumber(riseTimeGMT))
             {
-                nosunset = true;
+                sunrise = date.Date.AddMinutes(riseTimeGMT);
             }
-
-            if (!nosunrise)		// Sunrise was found
-            {
-                info.Sunrise = date.Date.AddMinutes(riseTimeGMT);
-            }
-
-            if (!nosunset)		// Sunset was found
-            {
-                info.Sunset = date.Date.AddMinutes(setTimeGMT);
-            }
-
-            // Calculate solar noon for this date
-            var solNoonGMT = calcSolNoonUTC(T, longitude);
-
-            if (!(nosunset || nosunrise))
-            {
-                info.Noon = TimeSpan.FromMinutes(solNoonGMT);
-            }
-
-
-            var tsnoon = calcTimeJulianCent(calcJDFromJulianCent(T) - 0.5 + solNoonGMT / 1440.0);
-            eqTime = calcEquationOfTime(tsnoon);
-            solarDec = calcSunDeclination(tsnoon);
-
-            info.EquationOfTime = TimeSpan.FromMinutes(eqTime);
-            info.SolarDeclination = solarDec;
-
             // report special cases of no sunrise
-            if (nosunrise)
+            else
             {
                 // if Northern hemisphere and spring or summer, OR  
                 // if Southern hemisphere and fall or winter, use 
@@ -117,7 +458,7 @@ namespace CStrahan.Astronomy
                         newjd -= 1.0;
                     }
 
-                    info.Sunrise = ConvertToDate(newtime, newjd);
+                    sunrise = InternalConvertToDate(newtime, newjd);
                 }
 
                 // if Northern hemisphere and fall or winter, OR 
@@ -141,79 +482,77 @@ namespace CStrahan.Astronomy
                         newjd -= 1.0;
                     }
 
-                    info.Sunrise = ConvertToDate(newtime, newjd);
+                    sunrise = InternalConvertToDate(newtime, newjd);
                 }
                 else
                 {
-                    Debug.Fail("Cannot Find Sunrise!");
+                    throw new Exception("Cannot Find Sunrise!");
                 }
-
-                // alert("Last Sunrise was on day " + findRecentSunrise(JD, latitude, longitude));
-                // alert("Next Sunrise will be on day " + findNextSunrise(JD, latitude, longitude));
             }
 
-            if (nosunset)
+            return sunrise;
+        }
+
+        // http://www.onlineconversion.com/julian_date.htm
+        public static DateTime JulianDayToCalendarDay(double julianDay)
+        {
+            double j1, j2, j3, j4, j5;			//scratch
+
+            //
+            // get the date from the Julian day number
+            //
+            var intgr = Math.Floor(julianDay);
+            var frac = julianDay - intgr;
+            var gregjd = 2299161;
+            if (intgr >= gregjd)
+            {				//Gregorian calendar correction
+                var tmp = Math.Floor(((intgr - 1867216) - 0.25) / 36524.25);
+                j1 = intgr + 1 + tmp - Math.Floor(0.25 * tmp);
+            }
+            else
+                j1 = intgr;
+
+            //correction for half day offset
+            var dayfrac = frac + 0.5;
+            if (dayfrac >= 1.0)
             {
-                // if Northern hemisphere and spring or summer, OR
-                // if Southern hemisphere and fall or winter, use 
-                // previous sunrise and next sunset
-
-                if (((latitude > 66.4) && (doy > 79) && (doy < 267)) ||
-                   ((latitude < -66.4) && ((doy < 83) || (doy > 263))))
-                {
-                    var newjd = findNextSunset(JD, latitude, longitude);
-                    var newtime = calcSunsetUTC(newjd, latitude, longitude);
-
-                    if (newtime > 1440)
-                    {
-                        newtime -= 1440;
-                        newjd += 1.0;
-                    }
-                    if (newtime < 0)
-                    {
-                        newtime += 1440;
-                        newjd -= 1.0;
-                    }
-
-                    info.Sunset = ConvertToDate(newtime, newjd);
-                }
-
-                // if Northern hemisphere and fall or winter, OR
-                // if Southern hemisphere and spring or summer, use 
-                // next sunrise and last sunset
-
-                else if (((latitude > 66.4) && ((doy < 83) || (doy > 263))) ||
-                    ((latitude < -66.4) && (doy > 79) && (doy < 267)))
-                {
-                    var newjd = findRecentSunset(JD, latitude, longitude);
-                    var newtime = calcSunsetUTC(newjd, latitude, longitude);
-
-                    if (newtime > 1440)
-                    {
-                        newtime -= 1440;
-                        newjd += 1.0;
-                    }
-                    if (newtime < 0)
-                    {
-                        newtime += 1440;
-                        newjd -= 1.0;
-                    }
-
-                    info.Sunset = ConvertToDate(newtime, newjd);
-                }
-                else
-                {
-                    Debug.Fail("Cannot Find Sunset!");
-                }
-
+                dayfrac -= 1.0;
+                ++j1;
             }
 
-            return info;
+            j2 = j1 + 1524;
+            j3 = Math.Floor(6680.0 + ((j2 - 2439870) - 122.1) / 365.25);
+            j4 = Math.Floor(j3 * 365.25);
+            j5 = Math.Floor((j2 - j4) / 30.6001);
+
+            var d = Math.Floor(j2 - j4 - Math.Floor(j5 * 30.6001));
+            var m = Math.Floor(j5 - 1);
+            if (m > 12) m -= 12;
+            var y = Math.Floor(j3 - 4715);
+            if (m > 2) --y;
+            if (y <= 0) --y;
+
+            //
+            // get time of day from day fraction
+            //
+            var hr = Math.Floor(dayfrac * 24.0);
+            var mn = Math.Floor((dayfrac * 24.0 - hr) * 60.0);
+            var f = ((dayfrac * 24.0 - hr) * 60.0 - mn) * 60.0;
+            var sc = Math.Floor(f);
+            f -= sc;
+            if (f > 0.5) ++sc;
+
+            //if( y < 0 ) {
+            //    y = -y;
+            //    form.era[1].checked = true;
+            //} else
+            //    form.era[0].checked = true;
+
+            return new DateTime((int)y, (int)m, (int)d, (int)hr, (int)mn, (int)sc, DateTimeKind.Utc);
         }
 
         // This is inspired by timeStringShortAMPM from the original source.
-        /// <summary>Note: This treats fractional julian days as whole days, so the minutes portion of the julian day will be replaced with the value of the minutes parameter.</summary>
-        private static DateTime ConvertToDate(double minutes, double JD)
+        private static DateTime InternalConvertToDate(double minutes, double JD)
         {
             var julianday = JD;
             var floatHour = minutes / 60.0;
