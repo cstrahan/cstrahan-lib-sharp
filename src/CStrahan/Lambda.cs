@@ -4,78 +4,79 @@ namespace CStrahan
 {
     public class Lambda
     {
-        static Action Y(Func<Action, Action> f)
+        public static Action Y(Func<Action, Action> f)
         {
-            RecursiveAction rec = r => () => f(r(r))();
-            return rec(rec);
-        }
-        
-        static Action<TArg1> Y<TArg1>(Func<Action<TArg1>, Action<TArg1>> f)
-        {
-            RecursiveAction<TArg1> rec = r => arg1 => f(r(r))(arg1);
-            return rec(rec);
+            return U<Action>(r => () => f(U(r))());
         }
 
-        static Action<TArg1, TArg2> Y<TArg1, TArg2>(Func<Action<TArg1, TArg2>, Action<TArg1, TArg2>> f)
+        public static Action<TArg1> Y<TArg1>(Func<Action<TArg1>, Action<TArg1>> f)
         {
-            RecursiveAction<TArg1, TArg2> rec = r => (arg1, arg2) => f(r(r))(arg1, arg2);
-            return rec(rec);
+            return U<Action<TArg1>>(r => arg1 => f(U(r))(arg1));
         }
 
-        static Action<TArg1, TArg2, TArg3> Y<TArg1, TArg2, TArg3>(Func<Action<TArg1, TArg2, TArg3>, Action<TArg1, TArg2, TArg3>> f)
+        public static Action<TArg1, TArg2> Y<TArg1, TArg2>(Func<Action<TArg1, TArg2>, Action<TArg1, TArg2>> f)
         {
-            RecursiveAction<TArg1, TArg2, TArg3> rec = r => (arg1, arg2, arg3) => f(r(r))(arg1, arg2, arg3);
-            return rec(rec);
+            return U<Action<TArg1, TArg2>>(r => (arg1, arg2) => f(U(r))(arg1, arg2));
         }
 
-        static Action<TArg1, TArg2, TArg3, TArg4> Y<TArg1, TArg2, TArg3, TArg4>(Func<Action<TArg1, TArg2, TArg3, TArg4>, Action<TArg1, TArg2, TArg3, TArg4>> f)
+        public static Action<TArg1, TArg2, TArg3> Y<TArg1, TArg2, TArg3>(Func<Action<TArg1, TArg2, TArg3>, Action<TArg1, TArg2, TArg3>> f)
         {
-            RecursiveAction<TArg1, TArg2, TArg3, TArg4> rec = r => (arg1, arg2, arg3, arg4) => f(r(r))(arg1, arg2, arg3, arg4);
-            return rec(rec);
+            return U<Action<TArg1, TArg2, TArg3>>(r => (arg1, arg2, arg3) => f(U(r))(arg1, arg2, arg3));
         }
 
-        static Action<TArg1, TArg2, TArg3, TArg4, TArg5> Y<TArg1, TArg2, TArg3, TArg4, TArg5>(Func<Action<TArg1, TArg2, TArg3, TArg4, TArg5>, Action<TArg1, TArg2, TArg3, TArg4, TArg5>> f)
+        public static Action<TArg1, TArg2, TArg3, TArg4> Y<TArg1, TArg2, TArg3, TArg4>(Func<Action<TArg1, TArg2, TArg3, TArg4>, Action<TArg1, TArg2, TArg3, TArg4>> f)
         {
-            RecursiveAction<TArg1, TArg2, TArg3, TArg4, TArg5> rec = r => (arg1, arg2, arg3, arg4, arg5) => f(r(r))(arg1, arg2, arg3, arg4, arg5);
-            return rec(rec);
+            return U<Action<TArg1, TArg2, TArg3, TArg4>>(r => (arg1, arg2, arg3, arg4) => f(U(r))(arg1, arg2, arg3, arg4));
         }
 
-        
-
-        static Func<TReturn> Y<TReturn>(Func<Func<TReturn>, Func<TReturn>> f)
+        public static Action<TArg1, TArg2, TArg3, TArg4, TArg5> Y<TArg1, TArg2, TArg3, TArg4, TArg5>(Func<Action<TArg1, TArg2, TArg3, TArg4, TArg5>, Action<TArg1, TArg2, TArg3, TArg4, TArg5>> f)
         {
-            RecursiveFunc<TReturn> rec = r => () => f(r(r))();
-            return rec(rec);
+            return U<Action<TArg1, TArg2, TArg3, TArg4, TArg5>>(r => (arg1, arg2, arg3, arg4, arg5) => f(U(r))(arg1, arg2, arg3, arg4, arg5));
         }
 
-        static Func<TArg1, TReturn> Y<TArg1, TReturn>(Func<Func<TArg1, TReturn>, Func<TArg1, TReturn>> f)
+
+
+        public static Func<TReturn> Y<TReturn>(Func<Func<TReturn>, Func<TReturn>> f)
         {
-            RecursiveFunc<TArg1, TReturn> rec = r => arg1 => f(r(r))(arg1);
-            return rec(rec);
+            return U<Func<TReturn>>(r => () => f(U(r))());
         }
 
-        static Func<TArg1, TArg2, TReturn> Y<TArg1, TArg2, TReturn>(Func<Func<TArg1, TArg2, TReturn>, Func<TArg1, TArg2, TReturn>> f)
+        public static Func<TArg1, TReturn> Y<TArg1, TReturn>(Func<Func<TArg1, TReturn>, Func<TArg1, TReturn>> f)
         {
-            RecursiveFunc<TArg1, TArg2, TReturn> rec = r => (arg1, arg2) => f(r(r))(arg1, arg2);
-            return rec(rec);
+            return U<Func<TArg1, TReturn>>(r => arg1 => f(U(r))(arg1));
         }
 
-        static Func<TArg1, TArg2, TArg3, TReturn> Y<TArg1, TArg2, TArg3, TReturn>(Func<Func<TArg1, TArg2, TArg3, TReturn>, Func<TArg1, TArg2, TArg3, TReturn>> f)
+        public static Func<TArg1, TArg2, TReturn> Y<TArg1, TArg2, TReturn>(Func<Func<TArg1, TArg2, TReturn>, Func<TArg1, TArg2, TReturn>> f)
         {
-            RecursiveFunc<TArg1, TArg2, TArg3, TReturn> rec = r => (arg1, arg2, arg3) => f(r(r))(arg1, arg2, arg3);
-            return rec(rec);
+            return U<Func<TArg1, TArg2, TReturn>>(r => (arg1, arg2) => f(U(r))(arg1, arg2));
         }
 
-        static Func<TArg1, TArg2, TArg3, TArg4, TReturn> Y<TArg1, TArg2, TArg3, TArg4, TReturn>(Func<Func<TArg1, TArg2, TArg3, TArg4, TReturn>, Func<TArg1, TArg2, TArg3, TArg4, TReturn>> f)
+        public static Func<TArg1, TArg2, TArg3, TReturn> Y<TArg1, TArg2, TArg3, TReturn>(Func<Func<TArg1, TArg2, TArg3, TReturn>, Func<TArg1, TArg2, TArg3, TReturn>> f)
         {
-            RecursiveFunc<TArg1, TArg2, TArg3, TArg4, TReturn> rec = r => (arg1, arg2, arg3, arg4) => f(r(r))(arg1, arg2, arg3, arg4);
-            return rec(rec);
+            return U<Func<TArg1, TArg2, TArg3, TReturn>>(r => (arg1, arg2, arg3) => f(U(r))(arg1, arg2, arg3));
         }
 
-        static Func<TArg1, TArg2, TArg3, TArg4, TArg5, TReturn> Y<TArg1, TArg2, TArg3, TArg4, TArg5, TReturn>(Func<Func<TArg1, TArg2, TArg3, TArg4, TArg5, TReturn>, Func<TArg1, TArg2, TArg3, TArg4, TArg5, TReturn>> f)
+        public static Func<TArg1, TArg2, TArg3, TArg4, TReturn> Y<TArg1, TArg2, TArg3, TArg4, TReturn>(Func<Func<TArg1, TArg2, TArg3, TArg4, TReturn>, Func<TArg1, TArg2, TArg3, TArg4, TReturn>> f)
         {
-            RecursiveFunc<TArg1, TArg2, TArg3, TArg4, TArg5, TReturn> rec = r => (arg1, arg2, arg3, arg4, arg5) => f(r(r))(arg1, arg2, arg3, arg4, arg5);
-            return rec(rec);
+            return U<Func<TArg1, TArg2, TArg3, TArg4, TReturn>>(r => (arg1, arg2, arg3, arg4) => f(U(r))(arg1, arg2, arg3, arg4));
         }
+
+        public static Func<TArg1, TArg2, TArg3, TArg4, TArg5, TReturn> Y<TArg1, TArg2, TArg3, TArg4, TArg5, TReturn>(Func<Func<TArg1, TArg2, TArg3, TArg4, TArg5, TReturn>, Func<TArg1, TArg2, TArg3, TArg4, TArg5, TReturn>> f)
+        {
+            return U<Func<TArg1, TArg2, TArg3, TArg4, TArg5, TReturn>>(r => (arg1, arg2, arg3, arg4, arg5) => f(U(r))(arg1, arg2, arg3, arg4, arg5));
+        }
+
+
+
+        public static void U(SelfApplicable r)
+        {
+            r(r);
+        }
+
+        public static TResult U<TResult>(SelfApplicable<TResult> r)
+        {
+            return r(r);
+        }
+
     }
 }
