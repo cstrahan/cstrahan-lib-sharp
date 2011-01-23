@@ -41,9 +41,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Astronomy\SolarInfo.cs" />
+    <Compile Include="Combinators\Extensions\LambdaExtensions.cs" />
     <Compile Include="COM\REGKIND.cs" />
     <Compile Include="COM\COMUtil.cs" />
-    <Compile Include="Lambda.cs" />
+    <Compile Include="Combinators\Lambda.cs">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SelfApplicable.cs" />
     <Compile Include="Win32\FLASHWINFO.cs" />

@@ -1,9 +1,8 @@
 ﻿using System;
 using System.Linq;
-using System.Runtime.InteropServices;
-using System.Threading;
 using CStrahan;
-using CStrahan.Win32;
+using CStrahan.Combinators;
+using CStrahan.Combinators.Extensions;
 
 namespace Sandbox
 {
@@ -11,23 +10,25 @@ namespace Sandbox
     {
         static void Main(string[] args)
         {
-            //var windows = WindowInfo.GetWindows();
+            var fibFunctional = Lambda.Functional<long, long>(fibo => n => n < 2 ? n : fibo(n - 1) + fibo(n - 2));
+            var fib = fibFunctional.Fix();
+            var fibMemo = fibFunctional.Memoize().Fix();
 
-            //foreach (var windowInfo in windows.Where(x => x.IsAltTabWindow))
-            //{
-            //    Console.WriteLine(windowInfo.Title);
-            //}
+            var range = Enumerable.Range(0, 50);
 
-
-            var fib = Lambda.Y<int, int>(f => n => n < 2 ? n : f(n - 1) + f(n - 2));
-
-            foreach (var n in Enumerable.Range(0, 10))
+            Console.WriteLine("With memoization:");
+            foreach (var n in range)
             {
-                Console.WriteLine("fib({0}) = {1}", n, fib(n));
+                Console.WriteLine("fib({0}) = {1}", n, fibMemo(n));
             }
 
+            //Console.WriteLine("Without memoization:");
+            //foreach (var n in range)
+            //{
+            //    Console.WriteLine("fib({0}) = {1}", n, fib(n));
+            //}
 
-
+            
             Console.WriteLine(".......");
             Console.ReadKey(true);
         }
