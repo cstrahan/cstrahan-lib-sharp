@@ -297,5 +297,27 @@ namespace CStrahan.Combinators
         {
             return func;
         }
+
+
+
+        public static Func<Func<T1, TReturn>, Func<T1, TReturn>> Trace<T1, TReturn>(Func<Func<T1, TReturn>, Func<T1, TReturn>> functional)
+        {
+            var recursionLevel = 0;
+            Func<Func<T1, TReturn>, Func<T1, TReturn>> wrapper =
+                f => arg1 =>
+                         {
+                             recursionLevel++;
+
+                             var indent = new string(' ', recursionLevel*2);
+                             Console.WriteLine(indent + arg1);
+
+                             TReturn result = functional(f)(arg1);
+
+                             recursionLevel--;
+
+                             return result;
+                         };
+            return wrapper;
+        }
     }
 }

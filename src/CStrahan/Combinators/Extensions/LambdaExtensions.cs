@@ -92,5 +92,12 @@ namespace CStrahan.Combinators.Extensions
         {
             return Lambda.Memoize(functional);
         }
+
+
+
+        public static Func<Func<TArg1, TReturn>, Func<TArg1, TReturn>> Trace<TArg1, TReturn>(this Func<Func<TArg1, TReturn>, Func<TArg1, TReturn>> functional)
+        {
+            return Lambda.Trace(functional);
+        }
     }
 }

@@ -41,6 +41,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Astronomy\SolarInfo.cs" />
+    <Compile Include="Collections\Immutable\Dequeue.cs" />
+    <Compile Include="Collections\Immutable\IDeque.cs" />
     <Compile Include="Combinators\Extensions\LambdaExtensions.cs" />
     <Compile Include="COM\REGKIND.cs" />
     <Compile Include="COM\COMUtil.cs" />
